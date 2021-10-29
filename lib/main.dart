@@ -58,9 +58,7 @@ class _MyHomePageState extends State<MyHomePage> {
         appBar: AppBar(
           title: Text(widget.title),
         ),
-        body: SizedBox(
-            width: 300,
-            height: 300,
+        body: SizedBox.expand(
             child: ImageCropWidget.asset(
               'assets/pasted_image.png',
               onUpdate: (originImage, rectInImage) async {
@@ -69,10 +67,10 @@ class _MyHomePageState extends State<MyHomePage> {
                 canvas.drawImageRect(originImage, rectInImage, Rect.fromLTWH(0, 0, rectInImage.width, rectInImage.height), Paint());
                 final p = recorder.endRecording();
                 final image = await p.toImage(rectInImage.width.toInt(), rectInImage.height.toInt());
-                final f = File('./hello.jpg');
-                final png = i.PngEncoder().encodeImage(i.Image.fromBytes(image.width, image.height,(await image.toByteData())!.buffer.asUint8List()));
-                print('path: ${f.absolute}');
-                f.writeAsBytes(png);
+                // final f = File('./hello.jpg');
+                // final png = i.PngEncoder().encodeImage(i.Image.fromBytes(image.width, image.height,(await image.toByteData())!.buffer.asUint8List()));
+                // print('path: ${f.absolute}');
+                // f.writeAsBytes(png);
               },
             )));
   }

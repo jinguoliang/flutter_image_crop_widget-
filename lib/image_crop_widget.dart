@@ -27,7 +27,7 @@ class ImageCropWidget extends StatefulWidget {
   }
 }
 
-enum TouchWhat { leftHandle, rightHandle, topHandle, bottomHandle, none }
+enum TouchOperation { leftHandle, rightHandle, topHandle, bottomHandle, none }
 
 class ImageCropWidgetState extends State<ImageCropWidget>
     with TickerProviderStateMixin {
@@ -95,6 +95,14 @@ class ImageCropWidgetState extends State<ImageCropWidget>
   }
 
   @override
+  void didUpdateWidget(covariant ImageCropWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.imageFile != oldWidget.imageFile) {
+      loadImage();
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return ImageCropGestureDetect(
       state: this,
@@ -109,7 +117,7 @@ class ImageCropWidgetState extends State<ImageCropWidget>
         });
       },
       onEnd: (touchWhat) {
-        if (touchWhat != TouchWhat.none) {
+        if (touchWhat != TouchOperation.none) {
           animScaleArea();
         } else {
           animScaleImage();
@@ -221,7 +229,9 @@ class ImageCropWidgetState extends State<ImageCropWidget>
         : await loadImageFile(widget.imageFile!);
     imageOriginalWidth = image.width;
     final ratio = image.width / image.height;
+    print('ratio: $ratio');
     final containerSize = context.size!;
+    print('container: ${context.size!}');
     final containerSizeRatio = (containerSize.width - 2 * padding) /
         (containerSize.height - 2 * padding);
     final c;
@@ -314,9 +324,11 @@ Future<ui.Image> loadImageAsset(String path) async {
 }
 
 Future<ui.Image> loadImageFile(File path) async {
+  print('path:  $path');
   final imageData = path.readAsBytesSync();
   final codec = await ui.instantiateImageCodec(imageData);
   final image = (await codec.getNextFrame()).image;
+  print('image: $image');
   return image;
 }
 
@@ -332,7 +344,7 @@ class ImageCropGestureDetect extends StatefulWidget {
   final ImageCropWidgetState state;
   final void Function(Rect) onImageRectUpdate;
   final void Function(Rect) onAreaRectUpdate;
-  final void Function(TouchWhat) onEnd;
+  final void Function(TouchOperation) onEnd;
 
   @override
   State<StatefulWidget> createState() {
@@ -341,10 +353,11 @@ class ImageCropGestureDetect extends StatefulWidget {
 }
 
 class ImageCropGestureDetectState extends State<ImageCropGestureDetect> {
-  var touchWhat = TouchWhat.none;
+  var touchWhat = TouchOperation.none;
   late Offset lastScaleFocal;
   late Rect lastImageRect;
   double lastScale = 1;
+  int pointerCount = 0;
 
   @override
   Widget build(BuildContext context) {
@@ -355,96 +368,93 @@ class ImageCropGestureDetectState extends State<ImageCropGestureDetect> {
           }
           if (startDetail.pointerCount == 1) {
             if (widget.state.isInLeftHandle(startDetail.localFocalPoint)) {
-              touchWhat = TouchWhat.leftHandle;
+              touchWhat = TouchOperation.leftHandle;
             }
             if (widget.state.isInRightHandle(startDetail.localFocalPoint)) {
-              touchWhat = TouchWhat.rightHandle;
+              touchWhat = TouchOperation.rightHandle;
             }
             if (widget.state.isInTopHandle(startDetail.localFocalPoint)) {
-              touchWhat = TouchWhat.topHandle;
+              touchWhat = TouchOperation.topHandle;
             }
             if (widget.state.isInBottomHandle(startDetail.localFocalPoint)) {
-              touchWhat = TouchWhat.bottomHandle;
+              touchWhat = TouchOperation.bottomHandle;
             }
-          } else {
-            lastImageRect = widget.state.imageRect;
-            // startImageRotation = imageRotation;
-            // rotationFocalPoint = startDetail.localFocalPoint;
-            lastScale = 1;
           }
+          lastScale = 1;
+          lastImageRect = widget.state.imageRect;
           lastScaleFocal = startDetail.localFocalPoint;
+          pointerCount = startDetail.pointerCount;
         },
         onScaleUpdate: (moveDetail) {
           if (widget.state.isAnimating) {
             return;
           }
 
+          if (moveDetail.pointerCount !=  pointerCount) {
+            pointerCount = moveDetail.pointerCount;
+            lastScaleFocal = moveDetail.localFocalPoint;
+            return;
+          }
           final areaRect = widget.state.areaRect;
           final minSize = widget.state.widget.minSize;
           final padding = widget.state.widget.padding;
 
-          if (moveDetail.pointerCount == 1) {
-            switch (touchWhat) {
-              case TouchWhat.leftHandle:
-                final newPos = areaRect.left +
-                    (moveDetail.localFocalPoint.dx - lastScaleFocal.dx);
-                var area = areaRect.copy(left: newPos);
-                if (area.width >= minSize && newPos > padding) {
-                  widget.onAreaRectUpdate(area);
-                }
-                break;
-              case TouchWhat.rightHandle:
-                final newPos = areaRect.right +
-                    (moveDetail.localFocalPoint.dx - lastScaleFocal.dx);
-                var newArea = areaRect.copy(right: newPos);
-                if (newArea.width >= minSize &&
-                    newPos < context.size!.width - padding) {
-                  widget.onAreaRectUpdate(newArea);
-                }
-                break;
-              case TouchWhat.topHandle:
-                final newPos = areaRect.top +
-                    (moveDetail.localFocalPoint.dy - lastScaleFocal.dy);
-                var newArea = areaRect.copy(top: newPos);
-                if (newPos > padding && newArea.height >= minSize) {
-                  widget.onAreaRectUpdate(newArea);
-                }
-                break;
-              case TouchWhat.bottomHandle:
-                final newPos = areaRect.bottom +
-                    (moveDetail.localFocalPoint.dy - lastScaleFocal.dy);
-                final newArea = areaRect.copy(bottom: newPos);
-                if (newPos < context.size!.height - padding &&
-                    newArea.height >= minSize) {
-                  widget.onAreaRectUpdate(newArea);
-                }
-                break;
-              default:
-                print('touch none');
-                widget.onImageRectUpdate(widget.state.imageRect.shift(moveDetail.localFocalPoint - lastScaleFocal));
-            }
-            lastScaleFocal = moveDetail.localFocalPoint;
-          } else {
-            final scale = moveDetail.scale / lastScale;
-            final focalPoint = moveDetail.localFocalPoint;
-            bool isTooLarge =
-                lastImageRect.width * scale / widget.state.imageOriginalWidth >
-                    5;
-            final newScale = isTooLarge ? 1.0 : scale;
-            final imageRect = widget.state.scaleRect(lastImageRect, newScale,
-                anchor: lastScaleFocal, newAnchor: focalPoint);
-            widget.onImageRectUpdate(imageRect);
-            lastImageRect = imageRect;
-            lastScale = moveDetail.scale;
-            lastScaleFocal = focalPoint;
+          switch (touchWhat) {
+            case TouchOperation.leftHandle:
+              final newPos = areaRect.left +
+                  (moveDetail.localFocalPoint.dx - lastScaleFocal.dx);
+              var area = areaRect.copy(left: newPos);
+              if (area.width >= minSize && newPos > padding) {
+                widget.onAreaRectUpdate(area);
+              }
+              break;
+            case TouchOperation.rightHandle:
+              final newPos = areaRect.right +
+                  (moveDetail.localFocalPoint.dx - lastScaleFocal.dx);
+              var newArea = areaRect.copy(right: newPos);
+              if (newArea.width >= minSize &&
+                  newPos < context.size!.width - padding) {
+                widget.onAreaRectUpdate(newArea);
+              }
+              break;
+            case TouchOperation.topHandle:
+              final newPos = areaRect.top +
+                  (moveDetail.localFocalPoint.dy - lastScaleFocal.dy);
+              var newArea = areaRect.copy(top: newPos);
+              if (newPos > padding && newArea.height >= minSize) {
+                widget.onAreaRectUpdate(newArea);
+              }
+              break;
+            case TouchOperation.bottomHandle:
+              final newPos = areaRect.bottom +
+                  (moveDetail.localFocalPoint.dy - lastScaleFocal.dy);
+              final newArea = areaRect.copy(bottom: newPos);
+              if (newPos < context.size!.height - padding &&
+                  newArea.height >= minSize) {
+                widget.onAreaRectUpdate(newArea);
+              }
+              break;
+            default:
+              final scale = moveDetail.scale / lastScale;
+              final focalPoint = moveDetail.localFocalPoint;
+              bool isTooLarge =
+                  lastImageRect.width * scale / widget.state.imageOriginalWidth >
+                      5;
+              final newScale = isTooLarge ? 1.0 : scale;
+              final imageRect = widget.state.scaleRect(lastImageRect, newScale,
+                  anchor: lastScaleFocal, newAnchor: focalPoint);
+              widget.onImageRectUpdate(imageRect);
+              lastImageRect = imageRect;
+              lastScale = moveDetail.scale;
           }
+          lastScaleFocal = moveDetail.localFocalPoint;
         },
         onScaleEnd: (endDetail) {
           if (widget.state.isAnimating) {
             return;
           }
           widget.onEnd(touchWhat);
-          touchWhat = TouchWhat.none;
+          touchWhat = TouchOperation.none;
         },
         child: widget.child);
   }
