@@ -60,20 +60,24 @@ class _MyHomePageState extends State<MyHomePage> {
         ),
         body: SizedBox.expand(
             child: ImageCropWidget.asset(
-              'assets/pasted_image.png',
-              onUpdate: (originImage, rectInImage) async {
-                // 这里获取到原图片和裁剪区域
-                ui.PictureRecorder recorder = ui.PictureRecorder();
-                final canvas = Canvas(recorder);
-                canvas.drawImageRect(originImage, rectInImage, Rect.fromLTWH(0, 0, rectInImage.width, rectInImage.height), Paint());
-                final p = recorder.endRecording();
-                final image = await p.toImage(rectInImage.width.toInt(), rectInImage.height.toInt());
-                // final f = File('./hello.jpg');
-                // final png = i.PngEncoder().encodeImage(i.Image.fromBytes(image.width, image.height,(await image.toByteData())!.buffer.asUint8List()));
-                // print('path: ${f.absolute}');
-                // f.writeAsBytes(png);
-
-              },
-            )));
+          'assets/pasted_image.png',
+          onUpdate: (originImage, rectInImage) async {
+            // 这里获取到原图片和裁剪区域
+            ui.PictureRecorder recorder = ui.PictureRecorder();
+            final canvas = Canvas(recorder);
+            canvas.drawImageRect(
+                originImage,
+                rectInImage,
+                Rect.fromLTWH(0, 0, rectInImage.width, rectInImage.height),
+                Paint());
+            final p = recorder.endRecording();
+            final image = await p.toImage(
+                rectInImage.width.toInt(), rectInImage.height.toInt());
+            // final f = File('./hello.jpg');
+            // final png = i.PngEncoder().encodeImage(i.Image.fromBytes(image.width, image.height,(await image.toByteData())!.buffer.asUint8List()));
+            // print('path: ${f.absolute}');
+            // f.writeAsBytes(png);
+          },
+        )));
   }
 }

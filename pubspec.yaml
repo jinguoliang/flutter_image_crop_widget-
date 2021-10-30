@@ -1,5 +1,5 @@
 name: flutter_image_crop_widget
-description: an image crop widget implemented by flutter.
+description: an image crop widget implemented by flutter. 完全使用 flutter 实现的图片裁切工具，支持缩放图片，选择裁剪区域，返回图片裁切区域
 
 # The following line prevents the package from being accidentally published to
 # pub.dev using `pub publish`. This is preferred for private packages.

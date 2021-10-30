@@ -1,1 +1,2 @@
-1.0.0+1: 实现基本功能，缩放图片，调整选择区域，返回选择的图片区域
+1.0.0+1: basic function, support scale image and crop a rect of this image.
+

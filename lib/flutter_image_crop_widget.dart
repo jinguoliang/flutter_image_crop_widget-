@@ -4,32 +4,39 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+/// just use this widget to display an image and a crop rect area
 class ImageCropWidget extends StatefulWidget {
-  ImageCropWidget.asset(this.assetPath, {required this.onUpdate})
-      : imageFile = null;
+  /// load an image from asset
+  ImageCropWidget.asset(String assetPath, {required this.onUpdate})
+      : _assetPath = assetPath,
+        _imageFile = null;
 
-  ImageCropWidget.file(this.imageFile, {required this.onUpdate})
-      : assetPath = null;
+  /// load an image from file
+  ImageCropWidget.file(File imageFile, {required this.onUpdate})
+      : _assetPath = null,
+        _imageFile = imageFile;
 
+  /// After doing some operation, call onUpdate do update the crop rect
   final void Function(ui.Image, Rect) onUpdate;
 
-  final String? assetPath;
-  final File? imageFile;
+  final String? _assetPath;
+  final File? _imageFile;
 
-  final handleWidth = 20.0;
-  final handleLength = 30.0;
-  final minSize = 30;
-  final padding = 20;
+  final _handleWidth = 20.0;
+  final _handleLength = 30.0;
+  final _minSize = 30;
+  final _padding = 20;
 
   @override
   State<StatefulWidget> createState() {
-    return ImageCropWidgetState();
+    return _ImageCropWidgetState();
   }
 }
 
+/// touch operation type
 enum TouchOperation { leftHandle, rightHandle, topHandle, bottomHandle, none }
 
-class ImageCropWidgetState extends State<ImageCropWidget>
+class _ImageCropWidgetState extends State<ImageCropWidget>
     with TickerProviderStateMixin {
   ui.Image? currentImage;
 
@@ -42,34 +49,34 @@ class ImageCropWidgetState extends State<ImageCropWidget>
 
   Rect leftHandle() {
     return Rect.fromLTWH(
-        areaRect.left - widget.handleWidth / 2,
-        areaRect.center.dy - widget.handleLength / 2,
-        widget.handleWidth,
-        widget.handleLength);
+        areaRect.left - widget._handleWidth / 2,
+        areaRect.center.dy - widget._handleLength / 2,
+        widget._handleWidth,
+        widget._handleLength);
   }
 
   Rect rightHandle() {
     return Rect.fromLTWH(
-        areaRect.right - widget.handleWidth / 2,
-        areaRect.center.dy - widget.handleLength / 2,
-        widget.handleWidth,
-        widget.handleLength);
+        areaRect.right - widget._handleWidth / 2,
+        areaRect.center.dy - widget._handleLength / 2,
+        widget._handleWidth,
+        widget._handleLength);
   }
 
   Rect topHandle() {
     return Rect.fromLTWH(
-        areaRect.center.dx - widget.handleLength / 2,
-        areaRect.top - widget.handleWidth / 2,
-        widget.handleLength,
-        widget.handleWidth);
+        areaRect.center.dx - widget._handleLength / 2,
+        areaRect.top - widget._handleWidth / 2,
+        widget._handleLength,
+        widget._handleWidth);
   }
 
   Rect bottomHandle() {
     return Rect.fromLTWH(
-        areaRect.center.dx - widget.handleLength / 2,
-        areaRect.bottom - widget.handleWidth / 2,
-        widget.handleLength,
-        widget.handleWidth);
+        areaRect.center.dx - widget._handleLength / 2,
+        areaRect.bottom - widget._handleWidth / 2,
+        widget._handleLength,
+        widget._handleWidth);
   }
 
   bool isInLeftHandle(Offset offset) {
@@ -97,7 +104,7 @@ class ImageCropWidgetState extends State<ImageCropWidget>
   @override
   void didUpdateWidget(covariant ImageCropWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.imageFile != oldWidget.imageFile) {
+    if (widget._imageFile != oldWidget._imageFile) {
       loadImage();
     }
   }
@@ -141,7 +148,7 @@ class ImageCropWidgetState extends State<ImageCropWidget>
   }
 
   void animScaleArea() async {
-    final padding = widget.padding;
+    final padding = widget._padding;
     final currentArea = areaRect;
     final ratio = currentArea.width / currentArea.height;
     final containerSize = context.size!;
@@ -223,10 +230,10 @@ class ImageCropWidgetState extends State<ImageCropWidget>
   int imageOriginalWidth = 0;
 
   void loadImage() async {
-    final padding = widget.padding;
-    final image = widget.assetPath != null
-        ? await loadImageAsset(widget.assetPath!)
-        : await loadImageFile(widget.imageFile!);
+    final padding = widget._padding;
+    final image = widget._assetPath != null
+        ? await loadImageAsset(widget._assetPath!)
+        : await loadImageFile(widget._imageFile!);
     imageOriginalWidth = image.width;
     final ratio = image.width / image.height;
     print('ratio: $ratio');
@@ -341,7 +348,7 @@ class ImageCropGestureDetect extends StatefulWidget {
       required this.onEnd});
 
   final Widget child;
-  final ImageCropWidgetState state;
+  final _ImageCropWidgetState state;
   final void Function(Rect) onImageRectUpdate;
   final void Function(Rect) onAreaRectUpdate;
   final void Function(TouchOperation) onEnd;
@@ -390,14 +397,14 @@ class ImageCropGestureDetectState extends State<ImageCropGestureDetect> {
             return;
           }
 
-          if (moveDetail.pointerCount !=  pointerCount) {
+          if (moveDetail.pointerCount != pointerCount) {
             pointerCount = moveDetail.pointerCount;
             lastScaleFocal = moveDetail.localFocalPoint;
             return;
           }
           final areaRect = widget.state.areaRect;
-          final minSize = widget.state.widget.minSize;
-          final padding = widget.state.widget.padding;
+          final minSize = widget.state.widget._minSize;
+          final padding = widget.state.widget._padding;
 
           switch (touchWhat) {
             case TouchOperation.leftHandle:
@@ -437,9 +444,10 @@ class ImageCropGestureDetectState extends State<ImageCropGestureDetect> {
             default:
               final scale = moveDetail.scale / lastScale;
               final focalPoint = moveDetail.localFocalPoint;
-              bool isTooLarge =
-                  lastImageRect.width * scale / widget.state.imageOriginalWidth >
-                      5;
+              bool isTooLarge = lastImageRect.width *
+                      scale /
+                      widget.state.imageOriginalWidth >
+                  5;
               final newScale = isTooLarge ? 1.0 : scale;
               final imageRect = widget.state.scaleRect(lastImageRect, newScale,
                   anchor: lastScaleFocal, newAnchor: focalPoint);
@@ -489,7 +497,6 @@ class CropperPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-
     if (image != null) {
       canvas.save();
       canvas.translate(rotationFocalPoint.dx, rotationFocalPoint.dy);
