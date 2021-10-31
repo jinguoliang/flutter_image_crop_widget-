@@ -1,10 +1,9 @@
-import 'dart:io';
+import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_image_crop_widget/flutter_image_crop_widget.dart';
-
-import 'package:image/image.dart' as i;
-import 'dart:ui' as ui;
 
 void main() {
   runApp(MyApp());
@@ -52,6 +51,18 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
+  Uint8List? imageData;
+
+  @override
+  void initState()  {
+    super.initState();
+    rootBundle.load('assets/pasted_image.png').then((data) {
+      setState(() {
+        imageData = data.buffer.asUint8List();
+      });
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -59,25 +70,28 @@ class _MyHomePageState extends State<MyHomePage> {
           title: Text(widget.title),
         ),
         body: SizedBox.expand(
-            child: ImageCropWidget.asset(
-          'assets/pasted_image.png',
-          onUpdate: (originImage, rectInImage) async {
-            // 这里获取到原图片和裁剪区域
-            ui.PictureRecorder recorder = ui.PictureRecorder();
-            final canvas = Canvas(recorder);
-            canvas.drawImageRect(
-                originImage,
-                rectInImage,
-                Rect.fromLTWH(0, 0, rectInImage.width, rectInImage.height),
-                Paint());
-            final p = recorder.endRecording();
-            final image = await p.toImage(
-                rectInImage.width.toInt(), rectInImage.height.toInt());
-            // final f = File('./hello.jpg');
-            // final png = i.PngEncoder().encodeImage(i.Image.fromBytes(image.width, image.height,(await image.toByteData())!.buffer.asUint8List()));
-            // print('path: ${f.absolute}');
-            // f.writeAsBytes(png);
-          },
-        )));
+            child: imageData == null
+                ? Placeholder()
+                : ImageCropWidget.memory(
+                    imageData!,
+                    onUpdate: (originImage, rectInImage) async {
+                      // 这里获取到原图片和裁剪区域
+                      ui.PictureRecorder recorder = ui.PictureRecorder();
+                      final canvas = Canvas(recorder);
+                      canvas.drawImageRect(
+                          originImage,
+                          rectInImage,
+                          Rect.fromLTWH(
+                              0, 0, rectInImage.width, rectInImage.height),
+                          Paint());
+                      final p = recorder.endRecording();
+                      final image = await p.toImage(rectInImage.width.toInt(),
+                          rectInImage.height.toInt());
+                      // final f = File('./hello.jpg');
+                      // final png = i.PngEncoder().encodeImage(i.Image.fromBytes(image.width, image.height,(await image.toByteData())!.buffer.asUint8List()));
+                      // print('path: ${f.absolute}');
+                      // f.writeAsBytes(png);
+                    },
+                  )));
   }
 }

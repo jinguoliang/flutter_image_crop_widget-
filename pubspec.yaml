@@ -1,5 +1,5 @@
 name: flutter_image_crop_widget
-description: an image crop widget implemented by flutter. 完全使用 flutter 实现的图片裁切工具，支持缩放图片，选择裁剪区域，返回图片裁切区域
+description: an image crop widget implemented by flutter. two finger to scale the image and crop part of it.
 
 # The following line prevents the package from being accidentally published to
 # pub.dev using `pub publish`. This is preferred for private packages.
@@ -17,7 +17,7 @@ repository: https://github.com/jinguoliang/flutter_image_crop_widget-
 # In iOS, build-name is used as CFBundleShortVersionString while build-number used as CFBundleVersion.
 # Read more about iOS versioning at
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
-version: 1.0.0+3
+version: 1.0.0+5
 
 environment:
   sdk: ">=2.12.0 <3.0.0"
@@ -39,10 +39,10 @@ flutter:
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in
   # the material Icons class.
-  uses-material-design: true
+#  uses-material-design: true
 
   # To add assets to your application, add an assets section, like this:
-#  assets:
+  #  assets:
   #   - images/a_dot_ham.jpeg
 
   # An image asset can refer to one or more resolution-specific "variants", see
