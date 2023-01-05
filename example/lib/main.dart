@@ -1,6 +1,6 @@
 import 'dart:typed_data';
-import 'dart:ui' as ui;
 
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_image_crop_widget/flutter_image_crop_widget.dart';
@@ -52,9 +52,10 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   Uint8List? imageData;
+  bool editMode = false;
 
   @override
-  void initState()  {
+  void initState() {
     super.initState();
     rootBundle.load('assets/pasted_image.png').then((data) {
       setState(() {
@@ -68,30 +69,43 @@ class _MyHomePageState extends State<MyHomePage> {
     return Scaffold(
         appBar: AppBar(
           title: Text(widget.title),
+          actions: [
+            IconButton(
+                onPressed: () {
+                  setState(() {
+                    editMode = !editMode;
+                  });
+                },
+                icon: editMode ? Icon(Icons.edit) : Icon(Icons.visibility))
+          ],
         ),
         body: SizedBox.expand(
             child: imageData == null
                 ? Placeholder()
-                : ImageCropWidget.memory(
-                    imageData!,
-                    onUpdate: (originImage, rectInImage) async {
-                      // 这里获取到原图片和裁剪区域
-                      ui.PictureRecorder recorder = ui.PictureRecorder();
-                      final canvas = Canvas(recorder);
-                      canvas.drawImageRect(
-                          originImage,
-                          rectInImage,
-                          Rect.fromLTWH(
-                              0, 0, rectInImage.width, rectInImage.height),
-                          Paint());
-                      final p = recorder.endRecording();
-                      final image = await p.toImage(rectInImage.width.toInt(),
-                          rectInImage.height.toInt());
-                      // final f = File('./hello.jpg');
-                      // final png = i.PngEncoder().encodeImage(i.Image.fromBytes(image.width, image.height,(await image.toByteData())!.buffer.asUint8List()));
-                      // print('path: ${f.absolute}');
-                      // f.writeAsBytes(png);
-                    },
-                  )));
+                : editMode
+                    ? ImageCropWidget.justView(
+                        imageData!,
+                      )
+                    : ImageCropWidget.memory(
+                        imageData!,
+                        onUpdate: (originImage, rectInImage) async {
+                          // 这里获取到原图片和裁剪区域
+                          ui.PictureRecorder recorder = ui.PictureRecorder();
+                          final canvas = Canvas(recorder);
+                          canvas.drawImageRect(
+                              originImage,
+                              rectInImage,
+                              Rect.fromLTWH(
+                                  0, 0, rectInImage.width, rectInImage.height),
+                              Paint());
+                          final p = recorder.endRecording();
+                          final image = await p.toImage(rectInImage.width.toInt(),
+                              rectInImage.height.toInt());
+                          // final f = File('./hello.jpg');
+                          // final png = i.PngEncoder().encodeImage(i.Image.fromBytes(image.width, image.height,(await image.toByteData())!.buffer.asUint8List()));
+                          // print('path: ${f.absolute}');
+                          // f.writeAsBytes(png);
+                        },
+                      )));
   }
 }

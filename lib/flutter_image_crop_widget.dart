@@ -5,19 +5,27 @@ import 'package:flutter/material.dart';
 
 /// just use this widget to display an image and a crop rect area
 class ImageCropWidget extends StatefulWidget {
-  /// load an image from file
+  /// load an image
   ImageCropWidget.memory(Uint8List data, {required this.onUpdate})
-      : _imageData = data;
+      : _imageData = data, canCrop = true;
+
+  ImageCropWidget.justView(
+    Uint8List data,
+  )   : _imageData = data,
+        canCrop = false,
+        onUpdate = null;
 
   /// After doing some operation, call onUpdate do update the crop rect
-  final void Function(ui.Image, Rect) onUpdate;
+  final void Function(ui.Image, Rect)? onUpdate;
+
+  final bool canCrop;
 
   final Uint8List _imageData;
 
-  final _handleWidth = 20.0;
-  final _handleLength = 30.0;
-  final _minSize = 30;
-  final _padding = 20;
+  final _handleWidth = 40.0;
+  final _handleLength = 40.0;
+  final _minSize = 40;
+  final _padding = 30;
 
   @override
   State<StatefulWidget> createState() {
@@ -132,7 +140,8 @@ class _ImageCropWidgetState extends State<ImageCropWidget>
               image: _currentImage,
               imageArea: _imageRect,
               imageRotation: 0,
-              rotationFocalPoint: Offset.zero),
+              rotationFocalPoint: Offset.zero,
+              canCrop: widget.canCrop),
         ),
       ),
     );
@@ -264,7 +273,7 @@ class _ImageCropWidgetState extends State<ImageCropWidget>
         (area.top - rect.top) * scale,
         (area.right - rect.left) * scale,
         (area.bottom - rect.top) * scale);
-    widget.onUpdate(_currentImage!, rectInImage);
+    widget.onUpdate?.call(_currentImage!, rectInImage);
   }
 
   void _animScaleImage() {
@@ -461,8 +470,10 @@ class _CropperPainter extends CustomPainter {
     required this.imageArea,
     required this.imageRotation,
     required this.rotationFocalPoint,
+    required this.canCrop,
   });
 
+  bool canCrop;
   Rect leftHandle;
   Rect rightHandle;
   Rect topHandle;
@@ -474,7 +485,7 @@ class _CropperPainter extends CustomPainter {
   final ui.Image? image;
 
   final imagePaint = Paint()..color = Colors.tealAccent;
-  final handlePaint = Paint()..color = Colors.white70;
+  final handlePaint = Paint()..color = Colors.white;
   final areaPaint = Paint()..color = Colors.black26;
 
   @override
@@ -484,6 +495,8 @@ class _CropperPainter extends CustomPainter {
       canvas.translate(rotationFocalPoint.dx, rotationFocalPoint.dy);
       canvas.rotate(imageRotation);
       canvas.translate(-rotationFocalPoint.dx, -rotationFocalPoint.dy);
+      canvas.drawColor(Colors.black54, BlendMode.srcOver);
+
       canvas.drawImageRect(
           image!,
           Rect.fromLTWH(
@@ -492,11 +505,17 @@ class _CropperPainter extends CustomPainter {
           imagePaint);
       canvas.restore();
     }
-    canvas.drawRect(area, areaPaint);
-    canvas.drawRect(leftHandle, handlePaint);
-    canvas.drawRect(rightHandle, handlePaint);
-    canvas.drawRect(topHandle, handlePaint);
-    canvas.drawRect(bottomHandle, handlePaint);
+    if (canCrop) {
+      canvas.saveLayer(Rect.fromLTWH(0, 0, size.width, size.height), Paint());
+      canvas.drawColor(Colors.black54, BlendMode.color);
+      canvas.drawRect(area, areaPaint..blendMode = BlendMode.clear);
+      canvas.restore();
+      canvas.drawCircle(leftHandle.center, leftHandle.width / 2, handlePaint);
+      canvas.drawCircle(rightHandle.center, rightHandle.width / 2, handlePaint);
+      canvas.drawCircle(topHandle.center, topHandle.width / 2, handlePaint);
+      canvas.drawCircle(
+          bottomHandle.center, bottomHandle.width / 2, handlePaint);
+    }
   }
 
   @override
