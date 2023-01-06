@@ -7,7 +7,8 @@ import 'package:flutter/material.dart';
 class ImageCropWidget extends StatefulWidget {
   /// load an image
   ImageCropWidget.memory(Uint8List data, {required this.onUpdate})
-      : _imageData = data, canCrop = true;
+      : _imageData = data,
+        canCrop = true;
 
   ImageCropWidget.justView(
     Uint8List data,
