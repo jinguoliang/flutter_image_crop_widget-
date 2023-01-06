@@ -1,9 +1,11 @@
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_image_crop_widget/flutter_image_crop_widget.dart';
+import 'package:image/image.dart' as i;
 
 void main() {
   runApp(MyApp());
@@ -90,17 +92,17 @@ class _MyHomePageState extends State<MyHomePage> {
                         imageData!,
                         onUpdate: (originImage, rectInImage) async {
                           // 这里获取到原图片和裁剪区域
-                          ui.PictureRecorder recorder = ui.PictureRecorder();
-                          final canvas = Canvas(recorder);
-                          canvas.drawImageRect(
-                              originImage,
-                              rectInImage,
-                              Rect.fromLTWH(
-                                  0, 0, rectInImage.width, rectInImage.height),
-                              Paint());
-                          final p = recorder.endRecording();
-                          final image = await p.toImage(rectInImage.width.toInt(),
-                              rectInImage.height.toInt());
+                          // ui.PictureRecorder recorder = ui.PictureRecorder();
+                          // final canvas = Canvas(recorder);
+                          // canvas.drawImageRect(
+                          //     originImage,
+                          //     rectInImage,
+                          //     Rect.fromLTWH(
+                          //         0, 0, rectInImage.width, rectInImage.height),
+                          //     Paint());
+                          // final p = recorder.endRecording();
+                          // final image = await p.toImage(rectInImage.width.toInt(),
+                          //     rectInImage.height.toInt());
                           // final f = File('./hello.jpg');
                           // final png = i.PngEncoder().encodeImage(i.Image.fromBytes(image.width, image.height,(await image.toByteData())!.buffer.asUint8List()));
                           // print('path: ${f.absolute}');

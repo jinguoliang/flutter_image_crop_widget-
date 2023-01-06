@@ -24,7 +24,7 @@ class ImageCropWidget extends StatefulWidget {
 
   final _handleWidth = 40.0;
   final _handleLength = 40.0;
-  final _minSize = 40;
+  final _minSize = 30;
   final _padding = 30;
 
   @override
