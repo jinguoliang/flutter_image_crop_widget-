@@ -6,20 +6,23 @@ import 'package:flutter/material.dart';
 /// just use this widget to display an image and a crop rect area
 class ImageCropWidget extends StatefulWidget {
   /// load an image
-  ImageCropWidget.editMode(ui.Image data, {required this.onUpdate})
+  ImageCropWidget.editMode(ui.Image data,
+      {required this.onUpdate, this.cropRatio = 0})
       : _imageData = data,
         canCrop = true;
 
-  ImageCropWidget.justView(
-      ui.Image data,
-  )   : _imageData = data,
+  ImageCropWidget.justView(ui.Image data)
+      : _imageData = data,
         canCrop = false,
+        cropRatio = 1,
         onUpdate = null;
 
   /// After doing some operation, call onUpdate do update the crop rect
   final void Function(ui.Image, Rect)? onUpdate;
 
   final bool canCrop;
+
+  final double cropRatio;
 
   final ui.Image _imageData;
 
@@ -235,34 +238,56 @@ class _ImageCropWidgetState extends State<ImageCropWidget>
     final padding = widget._padding;
     final image = widget._imageData;
     _imageOriginalWidth = image.width;
+    final imageRatio = image.width / image.height;
+
     await Future.delayed(Duration.zero);
-    final ratio = image.width / image.height;
-    print('ratio: $ratio');
     final containerSize = context.size!;
-    print('container: ${context.size!}');
+
     final containerSizeRatio = (containerSize.width - 2 * padding) /
         (containerSize.height - 2 * padding);
-    final c;
-    if (ratio > containerSizeRatio) {
-      final destHeight = (containerSize.width - 2 * padding) / ratio;
-      c = Rect.fromLTWH(
+    final Rect imageRect;
+    if (imageRatio > containerSizeRatio) {
+      final destHeight = (containerSize.width - 2 * padding) / imageRatio;
+      imageRect = Rect.fromLTWH(
           padding.toDouble(),
           (containerSize.height - destHeight) / 2,
           containerSize.width - 2 * padding,
           destHeight);
     } else {
-      final destWidth = (containerSize.height - 2 * padding) * ratio;
-      c = Rect.fromLTWH(
+      final destWidth = (containerSize.height - 2 * padding) * imageRatio;
+      imageRect = Rect.fromLTWH(
         (containerSize.width - destWidth) / 2,
         padding.toDouble(),
         destWidth,
         containerSize.height - 2 * padding,
       );
     }
+
+    var areaRect = imageRect;
+    final cropRatio = widget.cropRatio;
+    if (cropRatio != 0 && cropRatio != imageRatio) {
+      if (cropRatio > imageRatio) {
+        final destHeight = imageRect.width / cropRatio;
+        areaRect = Rect.fromLTWH(
+            imageRect.left,
+            imageRect.top + (imageRect.height - destHeight) / 2,
+            imageRect.width,
+            destHeight);
+      } else {
+        final destWidth = imageRect.height * cropRatio;
+        areaRect = Rect.fromLTWH(
+          imageRect.left + (imageRect.width - destWidth) / 2,
+          imageRect.top,
+          destWidth,
+          imageRect.height,
+        );
+      }
+    }
+
     setState(() {
       _currentImage = image;
-      _areaRect = c;
-      _imageRect = c;
+      _areaRect = areaRect;
+      _imageRect = imageRect;
     });
   }
 
@@ -323,13 +348,6 @@ class _ImageCropWidgetState extends State<ImageCropWidget>
         });
     _isAnimating = true;
   }
-}
-
-Future<ui.Image> _loadImageFromMemory(Uint8List imageData) async {
-  final codec = await ui.instantiateImageCodec(imageData);
-  final image = (await codec.getNextFrame()).image;
-  print('image: $image');
-  return image;
 }
 
 class _ImageCropGestureDetect extends StatefulWidget {
@@ -399,55 +417,78 @@ class _ImageCropGestureDetectState extends State<_ImageCropGestureDetect> {
           final minSize = widget.state.widget._minSize;
           final padding = widget.state.widget._padding;
 
-          switch (touchWhat) {
-            case TouchOperation.leftHandle:
-              final newPos = areaRect.left +
-                  (moveDetail.localFocalPoint.dx - lastScaleFocal.dx);
-              var area = areaRect.copy(left: newPos);
-              if (area.width >= minSize && newPos > padding) {
-                widget.onAreaRectUpdate(area);
-              }
-              break;
-            case TouchOperation.rightHandle:
-              final newPos = areaRect.right +
-                  (moveDetail.localFocalPoint.dx - lastScaleFocal.dx);
-              var newArea = areaRect.copy(right: newPos);
-              if (newArea.width >= minSize &&
-                  newPos < context.size!.width - padding) {
-                widget.onAreaRectUpdate(newArea);
-              }
-              break;
-            case TouchOperation.topHandle:
-              final newPos = areaRect.top +
-                  (moveDetail.localFocalPoint.dy - lastScaleFocal.dy);
-              var newArea = areaRect.copy(top: newPos);
-              if (newPos > padding && newArea.height >= minSize) {
-                widget.onAreaRectUpdate(newArea);
-              }
-              break;
-            case TouchOperation.bottomHandle:
-              final newPos = areaRect.bottom +
-                  (moveDetail.localFocalPoint.dy - lastScaleFocal.dy);
-              final newArea = areaRect.copy(bottom: newPos);
-              if (newPos < context.size!.height - padding &&
-                  newArea.height >= minSize) {
-                widget.onAreaRectUpdate(newArea);
-              }
-              break;
-            default:
-              final scale = moveDetail.scale / lastScale;
-              final focalPoint = moveDetail.localFocalPoint;
-              bool isTooLarge = lastImageRect.width *
-                      scale /
-                      widget.state._imageOriginalWidth >
-                  5;
-              final newScale = isTooLarge ? 1.0 : scale;
-              final imageRect = widget.state._scaleRect(lastImageRect, newScale,
-                  anchor: lastScaleFocal, newAnchor: focalPoint);
-              widget.onImageRectUpdate(imageRect);
-              lastImageRect = imageRect;
-              lastScale = moveDetail.scale;
+          if (touchWhat == TouchOperation.none) {
+            // 拖拽移动
+            final scale = moveDetail.scale / lastScale;
+            final focalPoint = moveDetail.localFocalPoint;
+            bool isTooLarge =
+                lastImageRect.width * scale / widget.state._imageOriginalWidth >
+                    5;
+            final newScale = isTooLarge ? 1.0 : scale;
+            final imageRect = widget.state._scaleRect(lastImageRect, newScale,
+                anchor: lastScaleFocal, newAnchor: focalPoint);
+            widget.onImageRectUpdate(imageRect);
+            lastImageRect = imageRect;
+            lastScale = moveDetail.scale;
+          } else {
+            Rect area;
+            final cropRatio = widget.state.widget.cropRatio;
+            switch (touchWhat) {
+              case TouchOperation.leftHandle:
+                final newPos = areaRect.left +
+                    (moveDetail.localFocalPoint.dx - lastScaleFocal.dx);
+                area = areaRect.copy(left: newPos);
+                if (cropRatio != 0) {
+                  final h = area.width / cropRatio;
+                  final dh = (h - area.height) / 2;
+                  area = area.copy(top: area.top - dh, bottom: area.bottom + dh);
+                }
+
+                break;
+              case TouchOperation.rightHandle:
+                final newPos = areaRect.right +
+                    (moveDetail.localFocalPoint.dx - lastScaleFocal.dx);
+                area = areaRect.copy(right: newPos);
+                if (cropRatio != 0) {
+                  final h = area.width / cropRatio;
+                  final dh = (h - area.height) / 2;
+                  area = area.copy(top: area.top - dh, bottom: area.bottom + dh);
+                }
+                break;
+              case TouchOperation.topHandle:
+                final newPos = areaRect.top +
+                    (moveDetail.localFocalPoint.dy - lastScaleFocal.dy);
+                area = areaRect.copy(top: newPos);
+                if (cropRatio != 0) {
+                  final w = area.height * cropRatio;
+                  final dw = (w - area.width) / 2;
+                  area = area.copy(left: area.left - dw, right: area.right + dw);
+                }
+                break;
+              case TouchOperation.bottomHandle:
+                final newPos = areaRect.bottom +
+                    (moveDetail.localFocalPoint.dy - lastScaleFocal.dy);
+                area = areaRect.copy(bottom: newPos);
+                if (cropRatio != 0) {
+                  final w = area.height * cropRatio;
+                  final dw = (w - area.width) / 2;
+                  area = area.copy(left: area.left - dw, right: area.right + dw);
+                }
+                break;
+              default:
+                throw Exception("no such operation");
+            }
+
+            if (area.width >= minSize &&
+                area.height >= minSize &&
+                area.left >= padding &&
+                area.top >= padding &&
+                area.right <= context.size!.width - padding &&
+                area.bottom <= context.size!.height - padding) {
+              widget.onAreaRectUpdate(area);
+            }
           }
+
           lastScaleFocal = moveDetail.localFocalPoint;
         },
         onScaleEnd: (endDetail) {

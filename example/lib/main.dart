@@ -92,6 +92,7 @@ class _MyHomePageState extends State<MyHomePage> {
                       )
                     : ImageCropWidget.editMode(
                         originImage!,
+                        cropRatio: 2,
                         onUpdate: (originImage, rectInImage) async {
                           // 这里获取到原图片和裁剪区域
                           // ui.PictureRecorder recorder = ui.PictureRecorder();
