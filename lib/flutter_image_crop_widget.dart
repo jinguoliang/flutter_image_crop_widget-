@@ -6,12 +6,12 @@ import 'package:flutter/material.dart';
 /// just use this widget to display an image and a crop rect area
 class ImageCropWidget extends StatefulWidget {
   /// load an image
-  ImageCropWidget.memory(Uint8List data, {required this.onUpdate})
+  ImageCropWidget.editMode(ui.Image data, {required this.onUpdate})
       : _imageData = data,
         canCrop = true;
 
   ImageCropWidget.justView(
-    Uint8List data,
+      ui.Image data,
   )   : _imageData = data,
         canCrop = false,
         onUpdate = null;
@@ -21,7 +21,7 @@ class ImageCropWidget extends StatefulWidget {
 
   final bool canCrop;
 
-  final Uint8List _imageData;
+  final ui.Image _imageData;
 
   final _handleWidth = 40.0;
   final _handleLength = 40.0;
@@ -233,8 +233,9 @@ class _ImageCropWidgetState extends State<ImageCropWidget>
 
   void _loadImage() async {
     final padding = widget._padding;
-    final image = await _loadImageFromMemory(widget._imageData);
+    final image = widget._imageData;
     _imageOriginalWidth = image.width;
+    await Future.delayed(Duration.zero);
     final ratio = image.width / image.height;
     print('ratio: $ratio');
     final containerSize = context.size!;

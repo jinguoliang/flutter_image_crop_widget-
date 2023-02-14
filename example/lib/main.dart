@@ -53,15 +53,17 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  Uint8List? imageData;
+  ui.Image? originImage;
   bool editMode = false;
 
   @override
   void initState() {
     super.initState();
-    rootBundle.load('assets/pasted_image.png').then((data) {
+    rootBundle.load('assets/pasted_image.png').then((data) async {
+      final imageData = data.buffer.asUint8List();
+      final image = await decodeImageFromList(imageData);
       setState(() {
-        imageData = data.buffer.asUint8List();
+        originImage = image;
       });
     });
   }
@@ -82,14 +84,14 @@ class _MyHomePageState extends State<MyHomePage> {
           ],
         ),
         body: SizedBox.expand(
-            child: imageData == null
+            child: originImage == null
                 ? Placeholder()
                 : editMode
                     ? ImageCropWidget.justView(
-                        imageData!,
+                        originImage!,
                       )
-                    : ImageCropWidget.memory(
-                        imageData!,
+                    : ImageCropWidget.editMode(
+                        originImage!,
                         onUpdate: (originImage, rectInImage) async {
                           // 这里获取到原图片和裁剪区域
                           // ui.PictureRecorder recorder = ui.PictureRecorder();
