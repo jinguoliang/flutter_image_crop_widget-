@@ -15,3 +15,7 @@ update screenshot
 1. add param to limit the min size of crop area
 2. add param to limit the ratio of crop area
 3. optimize the touch experience
+
+## 1.1.2+10
+
+bugfix: not update crop rect
