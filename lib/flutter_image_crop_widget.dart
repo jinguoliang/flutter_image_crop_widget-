@@ -183,37 +183,39 @@ class _ImageCropWidgetState extends State<ImageCropWidget>
     var _lastImageRect = _imageRect;
     var _lastAreaRect = _areaRect;
 
-    _animScaleRect(
-        begin: currentArea,
-        end: dstRect,
-        onUpdate: (c) {
-          setState(() {
-            final scale = c.width / _lastAreaRect.width;
-            _areaRect = c;
+    if (currentArea != dstRect) {
+      _animScaleRect(
+          begin: currentArea,
+          end: dstRect,
+          onUpdate: (c) {
+            setState(() {
+              final scale = c.width / _lastAreaRect.width;
+              _areaRect = c;
 
-            final cropRectMinSize = widget.cropAreaMinSize;
-            // 一旦裁切图片的最小边＜ minSize, 就不在放大图片
-            final cropWidthPercent = _areaRect.width / _lastImageRect.width;
-            final cropImageWidth = cropWidthPercent * _imageOriginalWidth;
-            final cropImageHeight =
-                cropImageWidth / (_areaRect.width / _areaRect.height);
-            final fitMinSize = cropRectMinSize == null ||
-                cropImageWidth >= cropRectMinSize &&
-                    cropImageHeight >= cropRectMinSize;
-            if (fitMinSize) {
-              _imageRect = _scaleRect(_lastImageRect, scale,
-                  anchor: _lastAreaRect.center, newAnchor: c.center);
-              _lastImageRect = _imageRect;
-            }
+              final cropRectMinSize = widget.cropAreaMinSize;
+              // 一旦裁切图片的最小边＜ minSize, 就不在放大图片
+              final cropWidthPercent = _areaRect.width / _lastImageRect.width;
+              final cropImageWidth = cropWidthPercent * _imageOriginalWidth;
+              final cropImageHeight =
+                  cropImageWidth / (_areaRect.width / _areaRect.height);
+              final fitMinSize = cropRectMinSize == null ||
+                  cropImageWidth >= cropRectMinSize &&
+                      cropImageHeight >= cropRectMinSize;
+              if (fitMinSize) {
+                _imageRect = _scaleRect(_lastImageRect, scale,
+                    anchor: _lastAreaRect.center, newAnchor: c.center);
+                _lastImageRect = _imageRect;
+              }
 
-            _lastAreaRect = _areaRect;
+              _lastAreaRect = _areaRect;
+            });
+          },
+          onFinish: () {
+            _animScaleImage();
           });
-        },
-        onFinish: () {
-          _animScaleImage();
-        });
 
-    _isAnimating = true;
+      _isAnimating = true;
+    }
   }
 
   void _animScaleRect(
@@ -361,19 +363,23 @@ class _ImageCropWidgetState extends State<ImageCropWidget>
     }
     targetImageRect = targetImageRect.translate(offsetX, offsetY);
 
-    _animScaleRect(
-        begin: _imageRect,
-        end: targetImageRect,
-        onUpdate: (v) {
-          setState(() {
-            _imageRect = v;
+    if (_imageRect != targetImageRect) {
+      _animScaleRect(
+          begin: _imageRect,
+          end: targetImageRect,
+          onUpdate: (v) {
+            setState(() {
+              _imageRect = v;
+            });
+          },
+          onFinish: () {
+            _isAnimating = false;
+            _updateCropImage();
           });
-        },
-        onFinish: () {
-          _isAnimating = false;
-          _updateCropImage();
-        });
-    _isAnimating = true;
+      _isAnimating = true;
+    } else {
+      _isAnimating = false;
+    }
   }
 }
 
@@ -403,6 +409,7 @@ class _ImageCropGestureDetectState extends State<_ImageCropGestureDetect> {
   late Rect lastImageRect;
   double lastScale = 1;
   int pointerCount = 0;
+  bool onStartTrig = false;
 
   @override
   Widget build(BuildContext context) {
@@ -411,30 +418,14 @@ class _ImageCropGestureDetectState extends State<_ImageCropGestureDetect> {
           if (widget.state._isAnimating) {
             return;
           }
-          if (startDetail.pointerCount == 1) {
-            if (widget.state._isInLeftHandle(startDetail.localFocalPoint)) {
-              touchWhat = TouchOperation.leftHandle;
-            }
-            if (widget.state._isInRightHandle(startDetail.localFocalPoint)) {
-              touchWhat = TouchOperation.rightHandle;
-            }
-            if (widget.state._isInTopHandle(startDetail.localFocalPoint)) {
-              touchWhat = TouchOperation.topHandle;
-            }
-            if (widget.state._isInBottomHandle(startDetail.localFocalPoint)) {
-              touchWhat = TouchOperation.bottomHandle;
-            }
-          }
-          lastScale = 1;
-          lastImageRect = widget.state._imageRect;
-          lastScaleFocal = startDetail.localFocalPoint;
-          pointerCount = startDetail.pointerCount;
+          processScaleStart(
+              startDetail.pointerCount, startDetail.localFocalPoint);
         },
         onScaleUpdate: (moveDetail) {
-          if (widget.state._isAnimating) {
-            return;
+          if (!onStartTrig) {
+            processScaleStart(
+                moveDetail.pointerCount, moveDetail.localFocalPoint);
           }
-
           if (moveDetail.pointerCount != pointerCount) {
             pointerCount = moveDetail.pointerCount;
             lastScaleFocal = moveDetail.localFocalPoint;
@@ -526,10 +517,33 @@ class _ImageCropGestureDetectState extends State<_ImageCropGestureDetect> {
           if (widget.state._isAnimating) {
             return;
           }
+          onStartTrig = false;
           widget.onEnd(touchWhat);
           touchWhat = TouchOperation.none;
         },
         child: widget.child);
+  }
+
+  void processScaleStart(int pointerCount, Offset localFocalPoint) {
+    if (pointerCount == 1) {
+      if (widget.state._isInLeftHandle(localFocalPoint)) {
+        touchWhat = TouchOperation.leftHandle;
+      }
+      if (widget.state._isInRightHandle(localFocalPoint)) {
+        touchWhat = TouchOperation.rightHandle;
+      }
+      if (widget.state._isInTopHandle(localFocalPoint)) {
+        touchWhat = TouchOperation.topHandle;
+      }
+      if (widget.state._isInBottomHandle(localFocalPoint)) {
+        touchWhat = TouchOperation.bottomHandle;
+      }
+    }
+    lastScale = 1;
+    lastImageRect = widget.state._imageRect;
+    lastScaleFocal = localFocalPoint;
+    pointerCount = pointerCount;
+    onStartTrig = true;
   }
 }
 
