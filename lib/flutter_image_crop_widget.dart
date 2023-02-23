@@ -215,6 +215,9 @@ class _ImageCropWidgetState extends State<ImageCropWidget>
           });
 
       _isAnimating = true;
+    } else {
+      _isAnimating = false;
+      _updateCropImage();
     }
   }
 
@@ -379,6 +382,7 @@ class _ImageCropWidgetState extends State<ImageCropWidget>
       _isAnimating = true;
     } else {
       _isAnimating = false;
+      _updateCropImage();
     }
   }
 }
@@ -459,7 +463,6 @@ class _ImageCropGestureDetectState extends State<_ImageCropGestureDetect> {
                   area =
                       area.copy(top: area.top - dh, bottom: area.bottom + dh);
                 }
-
                 break;
               case TouchOperation.rightHandle:
                 final newPos = areaRect.right +
