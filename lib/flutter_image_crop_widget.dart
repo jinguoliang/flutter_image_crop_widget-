@@ -1,4 +1,4 @@
-import 'dart:typed_data';
+import 'dart:math';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -7,15 +7,18 @@ import 'package:flutter/material.dart';
 class ImageCropWidget extends StatefulWidget {
   /// load an image
   ImageCropWidget.editMode(ui.Image data,
-      {required this.onUpdate, this.cropRatio = 0})
+      {required this.onUpdate, this.cropRatio = 0, this.cropAreaMinSize})
       : _imageData = data,
-        canCrop = true;
+        canCrop = true,
+        originImageSize = Size(data.width.toDouble(), data.height.toDouble());
 
   ImageCropWidget.justView(ui.Image data)
       : _imageData = data,
         canCrop = false,
         cropRatio = 1,
-        onUpdate = null;
+        cropAreaMinSize = null,
+        onUpdate = null,
+        originImageSize = Size(data.width.toDouble(), data.height.toDouble());
 
   /// After doing some operation, call onUpdate do update the crop rect
   final void Function(ui.Image, Rect)? onUpdate;
@@ -23,8 +26,9 @@ class ImageCropWidget extends StatefulWidget {
   final bool canCrop;
 
   final double cropRatio;
-
+  final double? cropAreaMinSize;
   final ui.Image _imageData;
+  final Size originImageSize;
 
   final _handleWidth = 40.0;
   final _handleLength = 40.0;
@@ -154,25 +158,25 @@ class _ImageCropWidgetState extends State<ImageCropWidget>
   void _animScaleArea() async {
     final padding = widget._padding;
     final currentArea = _areaRect;
-    final ratio = currentArea.width / currentArea.height;
-    final containerSize = context.size!;
-    final containerSizeRatio = (containerSize.width - 2 * padding) /
-        (containerSize.height - 2 * padding);
+    final areaRatio = currentArea.width / currentArea.height;
+    final containerSize = Size(context.size!.width - 2.0 * padding,
+        context.size!.height - 2.0 * padding);
+    final containerSizeRatio = (containerSize.width) / (containerSize.height);
     final dstRect;
-    if (ratio > containerSizeRatio) {
-      final destHeight = (containerSize.width - 2 * padding) / ratio;
+    if (areaRatio > containerSizeRatio) {
+      final destHeight = (containerSize.width) / areaRatio;
       dstRect = Rect.fromLTWH(
           padding.toDouble(),
-          (containerSize.height - destHeight) / 2,
-          containerSize.width - 2 * padding,
+          (containerSize.height - destHeight) / 2 + padding.toDouble(),
+          containerSize.width,
           destHeight);
     } else {
-      final destWidth = (containerSize.height - 2 * padding) * ratio;
+      final destWidth = (containerSize.height) * areaRatio;
       dstRect = Rect.fromLTWH(
-        (containerSize.width - destWidth) / 2,
+        (containerSize.width - destWidth) / 2 + padding.toDouble(),
         padding.toDouble(),
         destWidth,
-        containerSize.height - 2 * padding,
+        containerSize.height,
       );
     }
 
@@ -187,13 +191,21 @@ class _ImageCropWidgetState extends State<ImageCropWidget>
             final scale = c.width / _lastAreaRect.width;
             _areaRect = c;
 
-            bool isTooLarge =
-                _lastImageRect.width * scale / _imageOriginalWidth > 5;
-            if (!isTooLarge) {
+            final cropRectMinSize = widget.cropAreaMinSize;
+            // 一旦裁切图片的最小边＜ minSize, 就不在放大图片
+            final cropWidthPercent = _areaRect.width / _lastImageRect.width;
+            final cropImageWidth = cropWidthPercent * _imageOriginalWidth;
+            final cropImageHeight =
+                cropImageWidth / (_areaRect.width / _areaRect.height);
+            final fitMinSize = cropRectMinSize == null ||
+                cropImageWidth >= cropRectMinSize &&
+                    cropImageHeight >= cropRectMinSize;
+            if (fitMinSize) {
               _imageRect = _scaleRect(_lastImageRect, scale,
                   anchor: _lastAreaRect.center, newAnchor: c.center);
               _lastImageRect = _imageRect;
             }
+
             _lastAreaRect = _areaRect;
           });
         },
@@ -221,6 +233,7 @@ class _ImageCropWidgetState extends State<ImageCropWidget>
     });
   }
 
+  /// 对一个 rect 缩放，可以指定缩放中心，缩放前后的中心可以不一样
   Rect _scaleRect(Rect rect, double scale,
       {Offset? anchor, Offset? newAnchor}) {
     anchor = anchor ?? rect.center;
@@ -318,6 +331,20 @@ class _ImageCropWidgetState extends State<ImageCropWidget>
         targetImageRect =
             _scaleRect(_imageRect, area.height / _imageRect.height);
       }
+    }
+    final cropRectMinSize = widget.cropAreaMinSize;
+    // 一旦裁切图片的最小边＜ minSize, 就不在放大图片
+    final cropWidthPercent = area.width / _imageRect.width;
+    final cropImageWidth = cropWidthPercent * _imageOriginalWidth;
+    final cropImageHeight =
+        cropImageWidth / (_areaRect.width / _areaRect.height);
+    final fitMinSize = cropRectMinSize == null ||
+        cropImageWidth >= cropRectMinSize && cropImageHeight >= cropRectMinSize;
+    if (!fitMinSize) {
+      final minEdge = min(cropImageWidth, cropImageHeight);
+      final scaleCrop = cropRectMinSize! / minEdge;
+      targetImageRect = _scaleRect(_imageRect, 1 / scaleCrop,
+          anchor: area.center, newAnchor: area.center);
     }
 
     double offsetX = 0;
@@ -424,7 +451,7 @@ class _ImageCropGestureDetectState extends State<_ImageCropGestureDetect> {
             bool isTooLarge =
                 lastImageRect.width * scale / widget.state._imageOriginalWidth >
                     5;
-            final newScale = isTooLarge ? 1.0 : scale;
+            final newScale = false ? 1.0 : scale;
             final imageRect = widget.state._scaleRect(lastImageRect, newScale,
                 anchor: lastScaleFocal, newAnchor: focalPoint);
             widget.onImageRectUpdate(imageRect);
@@ -441,7 +468,8 @@ class _ImageCropGestureDetectState extends State<_ImageCropGestureDetect> {
                 if (cropRatio != 0) {
                   final h = area.width / cropRatio;
                   final dh = (h - area.height) / 2;
-                  area = area.copy(top: area.top - dh, bottom: area.bottom + dh);
+                  area =
+                      area.copy(top: area.top - dh, bottom: area.bottom + dh);
                 }
 
                 break;
@@ -452,7 +480,8 @@ class _ImageCropGestureDetectState extends State<_ImageCropGestureDetect> {
                 if (cropRatio != 0) {
                   final h = area.width / cropRatio;
                   final dh = (h - area.height) / 2;
-                  area = area.copy(top: area.top - dh, bottom: area.bottom + dh);
+                  area =
+                      area.copy(top: area.top - dh, bottom: area.bottom + dh);
                 }
                 break;
               case TouchOperation.topHandle:
@@ -462,7 +491,8 @@ class _ImageCropGestureDetectState extends State<_ImageCropGestureDetect> {
                 if (cropRatio != 0) {
                   final w = area.height * cropRatio;
                   final dw = (w - area.width) / 2;
-                  area = area.copy(left: area.left - dw, right: area.right + dw);
+                  area =
+                      area.copy(left: area.left - dw, right: area.right + dw);
                 }
                 break;
               case TouchOperation.bottomHandle:
@@ -472,7 +502,8 @@ class _ImageCropGestureDetectState extends State<_ImageCropGestureDetect> {
                 if (cropRatio != 0) {
                   final w = area.height * cropRatio;
                   final dw = (w - area.width) / 2;
-                  area = area.copy(left: area.left - dw, right: area.right + dw);
+                  area =
+                      area.copy(left: area.left - dw, right: area.right + dw);
                 }
                 break;
               default:
