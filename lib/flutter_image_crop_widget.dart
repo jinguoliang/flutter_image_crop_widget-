@@ -439,10 +439,7 @@ class _ImageCropGestureDetectState extends State<_ImageCropGestureDetect> {
             // 拖拽移动
             final scale = moveDetail.scale / lastScale;
             final focalPoint = moveDetail.localFocalPoint;
-            bool isTooLarge =
-                lastImageRect.width * scale / widget.state._imageOriginalWidth >
-                    5;
-            final newScale = false ? 1.0 : scale;
+            final newScale = scale;
             final imageRect = widget.state._scaleRect(lastImageRect, newScale,
                 anchor: lastScaleFocal, newAnchor: focalPoint);
             widget.onImageRectUpdate(imageRect);
